@@ -1,0 +1,673 @@
+{
+  "info": {
+    "_postman_id": "gandhinagar-dating-api-collection-v1",
+    "name": "💖 Gandhinagar Dating App API Collection",
+    "description": "Complete Postman collection for Gandhinagar Exclusive Dating Application Backend (Node.js + Express + MongoDB + Socket.IO)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "matchId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "requestId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "candidateUserId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🔑 Auth & Location Gatekeeping",
+      "item": [
+        {
+          "name": "1. Check Location Eligibility (Gandhinagar Pre-Check)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"city\": \"Gandhinagar\",\n  \"latitude\": 23.2156,\n  \"longitude\": 72.6369\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/check-location",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "check-location"]
+            },
+            "description": "Check if a GPS coordinate or city is eligible for Gandhinagar dating before signup."
+          }
+        },
+        {
+          "name": "2. Register New User (Sign Up)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data && jsonData.data.token) {",
+                  "    pm.collectionVariables.set('token', jsonData.data.token);",
+                  "    console.log('Saved Token:', jsonData.data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ananya Sharma\",\n  \"email\": \"ananya.test@example.com\",\n  \"password\": \"password123\",\n  \"dateOfBirth\": \"2001-05-15\",\n  \"gender\": \"female\",\n  \"genderPreference\": \"male\",\n  \"city\": \"Gandhinagar\",\n  \"latitude\": 23.2156,\n  \"longitude\": 72.6369,\n  \"bio\": \"Coffee addict ☕ | PDPU Student | Evening walks at Sarita Udyan 🌿\",\n  \"interests\": [\"Coffee\", \"Architecture\", \"Photography\", \"Travel\"],\n  \"datingIntent\": \"Coffee date\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Registers a new user profile. Hashes password using bcrypt and generates JWT token."
+          }
+        },
+        {
+          "name": "3. User Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data && jsonData.data.token) {",
+                  "    pm.collectionVariables.set('token', jsonData.data.token);",
+                  "    console.log('Saved Token:', jsonData.data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ananya.test@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Authenticates user with email and password and returns JWT token."
+          }
+        },
+        {
+          "name": "4. Get Current User Profile (Me)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Fetch current authenticated user profile using Bearer JWT token."
+          }
+        }
+      ]
+    },
+    {
+      "name": "👤 User Profile & Subscriptions",
+      "item": [
+        {
+          "name": "1. Update Unified Profile (Bio, Interests, Photos, Intent)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ananya Sharma\",\n  \"bio\": \"Updated bio: Architectural designer at PDPU! Love bobba tea & drives ☕🚘\",\n  \"interests\": [\"Coffee\", \"Architecture\", \"Music\", \"Boba Tea\"],\n  \"datingIntent\": \"Coffee date\",\n  \"genderPreference\": \"male\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "profile"]
+            },
+            "description": "Update profile bio, interests, dating intentions, or photos in a single API call."
+          }
+        },
+        {
+          "name": "2. Upgrade to ₹39 Premium VIP Plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"durationDays\": 30,\n  \"paymentId\": \"pay_razorpay_mock123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/upgrade-plan",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "upgrade-plan"]
+            },
+            "description": "Upgrades user account to ₹39 Premium VIP plan for 30 days."
+          }
+        },
+        {
+          "name": "3. Upload Gallery Photos (Multipart)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "photos",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/photos",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "photos"]
+            },
+            "description": "Upload up to 6 gallery photos (Multipart form-data)."
+          }
+        },
+        {
+          "name": "4. Delete Gallery Photo",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"photoUrl\": \"/uploads/photo-123456789.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/photos",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "photos"]
+            },
+            "description": "Deletes a specific photo URL from gallery."
+          }
+        },
+        {
+          "name": "5. Update GPS Location",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"city\": \"Gandhinagar\",\n  \"latitude\": 23.2200,\n  \"longitude\": 72.6390\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/location",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "location"]
+            },
+            "description": "Updates user GPS coordinates and city."
+          }
+        },
+        {
+          "name": "6. Change Password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"password123\",\n  \"newPassword\": \"newpassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/change-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "change-password"]
+            },
+            "description": "Change account password."
+          }
+        },
+        {
+          "name": "7. Block User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetUserId\": \"{{candidateUserId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/block",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "block"]
+            },
+            "description": "Blocks a user, removes mutual match and hides from feed."
+          }
+        },
+        {
+          "name": "8. Report User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetUserId\": \"{{candidateUserId}}\",\n  \"reason\": \"Inappropriate content or fake profile\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/report",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "report"]
+            },
+            "description": "Reports a user profile for moderation."
+          }
+        },
+        {
+          "name": "9. Delete Account",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/account",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "account"]
+            },
+            "description": "Permanently deletes user account and all data (Play Store compliance)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🎴 Swipe & Matching Engine",
+      "item": [
+        {
+          "name": "1. Discovery Feed List (Card Stack)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data && jsonData.data.profiles && jsonData.data.profiles.length > 0) {",
+                  "    pm.collectionVariables.set('candidateUserId', jsonData.data.profiles[0].id);",
+                  "    console.log('Saved Candidate User ID:', jsonData.data.profiles[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/swipe/feed?page=1&limit=20&minAge=18&maxAge=40&maxDistance=35",
+              "host": ["{{baseUrl}}"],
+              "path": ["swipe", "feed"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "minAge", "value": "18" },
+                { "key": "maxAge", "value": "40" },
+                { "key": "maxDistance", "value": "35" }
+              ]
+            },
+            "description": "Get candidate profiles in Gandhinagar matching gender preference and age/distance filters."
+          }
+        },
+        {
+          "name": "2. Get Single Profile Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/swipe/user/{{candidateUserId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["swipe", "user", "{{candidateUserId}}"]
+            },
+            "description": "Fetch complete profile details for single candidate card modal."
+          }
+        },
+        {
+          "name": "3. Swipe Action (Like / Pass / SuperLike / Comment)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetUserId\": \"{{candidateUserId}}\",\n  \"action\": \"like\",\n  \"comment\": \"Hey! Love your PDPU architecture photo ☕\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/swipe",
+              "host": ["{{baseUrl}}"],
+              "path": ["swipe"]
+            },
+            "description": "Swipe action: 'like', 'pass', 'superlike'. Optionally attach 'comment' for Hinge-style requests."
+          }
+        },
+        {
+          "name": "4. Get Incoming Pending Comment Requests",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data && jsonData.data.requests && jsonData.data.requests.length > 0) {",
+                  "    pm.collectionVariables.set('requestId', jsonData.data.requests[0].requestId);",
+                  "    console.log('Saved Request ID:', jsonData.data.requests[0].requestId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/swipe/requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["swipe", "requests"]
+            },
+            "description": "View incoming pending match requests with opener comments."
+          }
+        },
+        {
+          "name": "5. Respond to Match Request (Accept / Decline)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestId\": \"{{requestId}}\",\n  \"action\": \"accept\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/swipe/respond",
+              "host": ["{{baseUrl}}"],
+              "path": ["swipe", "respond"]
+            },
+            "description": "Accept or decline a pending comment request. Accepting converts comment to first chat message!"
+          }
+        },
+        {
+          "name": "6. Undo / Rewind Last Swipe",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/swipe/undo",
+              "host": ["{{baseUrl}}"],
+              "path": ["swipe", "undo"]
+            },
+            "description": "Rewind immediate last swipe (1-step limit rule)."
+          }
+        },
+        {
+          "name": "7. Get Active Mutual Matches List",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data && jsonData.data.matches && jsonData.data.matches.length > 0) {",
+                  "    pm.collectionVariables.set('matchId', jsonData.data.matches[0].matchId);",
+                  "    console.log('Saved Match ID:', jsonData.data.matches[0].matchId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/swipe/matches",
+              "host": ["{{baseUrl}}"],
+              "path": ["swipe", "matches"]
+            },
+            "description": "Get mutual matches list for Chat tab (includes unreadCount badge)."
+          }
+        },
+        {
+          "name": "8. Unmatch User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/swipe/unmatch/{{matchId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["swipe", "unmatch", "{{matchId}}"]
+            },
+            "description": "Unmatch a user and delete match record & messages."
+          }
+        }
+      ]
+    },
+    {
+      "name": "💬 Real-Time Chat & History",
+      "item": [
+        {
+          "name": "1. Get Chat Message History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/chat/{{matchId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["chat", "{{matchId}}"]
+            },
+            "description": "Fetch chronological message history for a match."
+          }
+        },
+        {
+          "name": "2. Mark Messages as Read",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/chat/read/{{matchId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["chat", "read", "{{matchId}}"]
+            },
+            "description": "Marks unread messages as read for a match."
+          }
+        },
+        {
+          "name": "3. Send HTTP Message (Enforces Free Weekend & Premium)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matchId\": \"{{matchId}}\",\n  \"text\": \"Hey! How is your day going in Gandhinagar? ☕\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/chat/send",
+              "host": ["{{baseUrl}}"],
+              "path": ["chat", "send"]
+            },
+            "description": "Send chat message via HTTP. Enforces Free Weekend Chat promo and ₹39 Premium rules."
+          }
+        }
+      ]
+    }
+  ]
+}
