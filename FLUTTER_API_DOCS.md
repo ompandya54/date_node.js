@@ -64,6 +64,21 @@ Image.network(
 
 ---
 
+## 📍 Location & Last Active Status Fields
+
+Every candidate profile returned in Discovery Feed (`GET /api/swipe/feed`), Candidate Detail (`GET /api/swipe/user/:id`), Pending Inbox (`GET /api/swipe/requests`), and Matches (`GET /api/swipe/matches`) includes pre-formatted distance and last-seen activity fields:
+
+### 📋 Candidate Location & Activity Fields:
+- `distanceKm`: `9` *(Numeric distance in KM)*
+- `distanceText`: `"9 km away"` *(Direct UI subtitle string)*
+- `locationText`: `"Gandhinagar (9 km away)"` *(Header location display)*
+- `lastActiveText`: `"Active now"` | `"Active 25 mins ago"` | `"Active 2 hrs ago"` *(Online/Activity badge)*
+
+### 🔄 Updating Logged-in User Location:
+Pass `latitude` and `longitude` in **Login** (`POST /api/auth/login`) or **Update Location** (`PUT /api/users/location`). The backend automatically refreshes `lastActive` timestamp on protected API requests.
+
+---
+
 ## 📂 Table of Endpoints
 
 ### 1. 🔑 Auth & Location Gatekeeping (`/api/auth`)

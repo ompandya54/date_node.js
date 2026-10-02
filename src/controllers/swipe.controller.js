@@ -5,6 +5,51 @@ import { calculateDistanceKm } from '../config/allowedCities.js';
 import { checkAndResetDailyUsage, PLAN_LIMITS } from '../utils/planHelper.js';
 
 /**
+ * Helper to compute distance & human-readable last active status string
+ * (e.g. distanceKm: 9, distanceText: "9 km away", locationText: "Gandhinagar (9 km away)", lastActiveText: "Active 20 mins ago")
+ */
+export const formatProfileLocationInfo = (currentUser, candidate) => {
+  const currentCoords = currentUser?.location?.coordinates || [72.6369, 23.2156];
+  const candidateCoords = candidate?.location?.coordinates || [72.6369, 23.2156];
+
+  const distance = calculateDistanceKm(
+    currentCoords[1],
+    currentCoords[0],
+    candidateCoords[1],
+    candidateCoords[0]
+  );
+
+  const roundedDistance = Math.round(distance);
+  const distanceText = `${roundedDistance} km away`;
+  const locationText = `${candidate?.city || 'Gandhinagar'} (${distanceText})`;
+
+  let lastActiveText = 'Recently active';
+  if (candidate?.lastActive) {
+    const diffMs = new Date() - new Date(candidate.lastActive);
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 5) {
+      lastActiveText = 'Active now';
+    } else if (diffMins < 60) {
+      lastActiveText = `Active ${diffMins} mins ago`;
+    } else if (diffHours < 24) {
+      lastActiveText = `Active ${diffHours} hr${diffHours > 1 ? 's' : ''} ago`;
+    } else if (diffDays < 7) {
+      lastActiveText = `Active ${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    }
+  }
+
+  return {
+    distanceKm: roundedDistance,
+    distanceText,
+    locationText,
+    lastActiveText,
+  };
+};
+
+/**
  * @desc    Get potential dating profiles list (Discovery Feed / Swipe Card Stack)
  * @route   GET /api/swipe/feed
  * @access  Private
@@ -73,13 +118,7 @@ export const getDiscoveryFeed = async (req, res, next) => {
     // Format output with full profile details & distance calculation
     const feed = profiles
       .map((profile) => {
-        const candidateCoords = profile.location?.coordinates || [72.6369, 23.2156];
-        const distance = calculateDistanceKm(
-          currentCoords[1],
-          currentCoords[0],
-          candidateCoords[1],
-          candidateCoords[0]
-        );
+        const locationInfo = formatProfileLocationInfo(currentUser, profile);
 
         return {
           id: profile._id.toString(),
@@ -92,8 +131,8 @@ export const getDiscoveryFeed = async (req, res, next) => {
           photos: profile.photos || [],
           interests: profile.interests || [],
           datingIntent: profile.datingIntent || 'Coffee date',
-          distanceKm: Math.round(distance),
           isCityVerified: profile.isCityVerified || true,
+          ...locationInfo,
           lastActive: profile.lastActive,
           createdAt: profile.createdAt,
         };
@@ -135,14 +174,7 @@ export const getSingleUserProfile = async (req, res, next) => {
       });
     }
 
-    const currentCoords = currentUser.location?.coordinates || [72.6369, 23.2156];
-    const candidateCoords = profile.location?.coordinates || [72.6369, 23.2156];
-    const distance = calculateDistanceKm(
-      currentCoords[1],
-      currentCoords[0],
-      candidateCoords[1],
-      candidateCoords[0]
-    );
+    const locationInfo = formatProfileLocationInfo(currentUser, profile);
 
     res.status(200).json({
       success: true,
@@ -158,8 +190,8 @@ export const getSingleUserProfile = async (req, res, next) => {
           photos: profile.photos || [],
           interests: profile.interests || [],
           datingIntent: profile.datingIntent || 'Coffee date',
-          distanceKm: Math.round(distance),
           isCityVerified: profile.isCityVerified || true,
+          ...locationInfo,
           lastActive: profile.lastActive,
           createdAt: profile.createdAt,
         },
@@ -386,16 +418,24 @@ export const getPendingRequests = async (req, res, next) => {
     })
       .populate({
         path: 'requestedBy',
-        select: 'name email age photos bio city interests datingIntent lastActive',
+        select: 'name email age photos bio city interests datingIntent lastActive location',
       })
       .sort({ createdAt: -1 });
 
-    const formattedRequests = requests.map((reqItem) => ({
-      requestId: reqItem._id.toString(),
-      comment: reqItem.comment,
-      createdAt: reqItem.createdAt,
-      sender: reqItem.requestedBy,
-    }));
+    const formattedRequests = requests.map((reqItem) => {
+      const sender = reqItem.requestedBy ? reqItem.requestedBy.toObject() : {};
+      const locationInfo = formatProfileLocationInfo(req.user, sender);
+
+      return {
+        requestId: reqItem._id.toString(),
+        comment: reqItem.comment,
+        createdAt: reqItem.createdAt,
+        sender: {
+          ...sender,
+          ...locationInfo,
+        },
+      };
+    });
 
     res.status(200).json({
       success: true,
@@ -590,7 +630,7 @@ export const getMatches = async (req, res, next) => {
     const matches = await Match.find({ users: userId, status: 'accepted' })
       .populate({
         path: 'users',
-        select: 'name email age photos bio city interests datingIntent lastActive',
+        select: 'name email age photos bio city interests datingIntent lastActive location',
       })
       .sort({ updatedAt: -1 });
 
@@ -606,12 +646,18 @@ export const getMatches = async (req, res, next) => {
           isRead: false,
         });
 
+        const otherUserObj = otherUser ? (otherUser.toObject ? otherUser.toObject() : otherUser) : {};
+        const locationInfo = formatProfileLocationInfo(req.user, otherUserObj);
+
         return {
           matchId: match._id.toString(),
           lastMessage: match.lastMessage,
           lastMessageAt: match.lastMessageAt,
           unreadCount,
-          user: otherUser,
+          user: {
+            ...otherUserObj,
+            ...locationInfo,
+          },
         };
       })
     );

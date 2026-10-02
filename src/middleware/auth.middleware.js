@@ -29,6 +29,12 @@ export const protect = async (req, res, next) => {
         });
       }
 
+      // Asynchronously refresh lastActive if older than 5 minutes
+      const now = new Date();
+      if (!req.user.lastActive || now - new Date(req.user.lastActive) > 5 * 60 * 1000) {
+        User.findByIdAndUpdate(req.user._id, { lastActive: now }).catch(() => {});
+      }
+
       next();
     } catch (error) {
       console.error('[Auth Middleware Error]:', error.message);

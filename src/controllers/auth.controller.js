@@ -148,7 +148,7 @@ export const registerUser = async (req, res, next) => {
  */
 export const loginUser = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, latitude, longitude, city } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
@@ -164,6 +164,14 @@ export const loginUser = async (req, res, next) => {
         success: false,
         message: 'Invalid email or password',
       });
+    }
+
+    if (latitude && longitude) {
+      user.location = {
+        type: 'Point',
+        coordinates: [parseFloat(longitude), parseFloat(latitude)],
+      };
+      if (city) user.city = city;
     }
 
     user.lastActive = new Date();
