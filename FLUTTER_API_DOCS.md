@@ -17,10 +17,49 @@ This document provides complete, production-ready REST API & Socket.IO specifica
 
 ---
 
+---
+
 ## 🔒 Authentication Header Requirement
 All protected endpoints require the **Bearer JWT Token** in HTTP Headers:
 ```text
 Authorization: Bearer <YOUR_JWT_TOKEN>
+```
+
+---
+
+## 🖼️ Cloudinary Image CDN Prefix & Flutter Image Helper
+
+To keep API payloads clean and prevent full URL leaks, the backend returns **relative photo paths** in the `photos` array (e.g. `v1790941873/gandhinagar_dating/photos/sample.jpg` or `gandhinagar_dating/photos/sample.jpg`).
+
+### ☁️ Cloudinary Base CDN URL:
+Hardcode this base CDN prefix in your Flutter App constants/config:
+```dart
+const String cloudBaseUrl = "https://res.cloudinary.com/w9agauni/image/upload/";
+```
+
+### 🛠️ Flutter Helper Function:
+```dart
+String getFullImageUrl(String photoPath) {
+  if (photoPath.isEmpty) return "";
+  // If photoPath is already a full URL (e.g. Unsplash seed image), return as is:
+  if (photoPath.startsWith('http://') || photoPath.startsWith('https://')) {
+    return photoPath;
+  }
+  // If it's a local server path fallback:
+  if (photoPath.startsWith('/uploads/')) {
+    return "https://date-node-js.onrender.com$photoPath";
+  }
+  // Otherwise prepend Cloudinary Base CDN URL:
+  return "https://res.cloudinary.com/w9agauni/image/upload/$photoPath";
+}
+```
+
+### 💡 Flutter Widget Example:
+```dart
+Image.network(
+  getFullImageUrl(user.photos[0]),
+  fit: BoxFit.cover,
+)
 ```
 
 ---

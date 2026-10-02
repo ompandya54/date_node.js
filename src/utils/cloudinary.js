@@ -59,21 +59,40 @@ export const uploadToCloudinary = async (filePath, folder = 'gandhinagar_dating/
 };
 
 /**
- * Helper: Delete an image from Cloudinary CDN by URL or public_id
- * @param {string} imagePathOrUrl Cloudinary image URL
+ * Helper: Convert a full Cloudinary URL to relative path (strips base CDN URL)
+ * Example input: "https://res.cloudinary.com/w9agauni/image/upload/v1790941873/gandhinagar_dating/photos/sample.jpg"
+ * Example output: "v1790941873/gandhinagar_dating/photos/sample.jpg"
+ */
+export const toRelativePhotoPath = (urlOrPath) => {
+  if (!urlOrPath || typeof urlOrPath !== 'string') return urlOrPath;
+
+  const uploadIndex = urlOrPath.indexOf('/image/upload/');
+  if (uploadIndex !== -1) {
+    return urlOrPath.substring(uploadIndex + '/image/upload/'.length);
+  }
+
+  return urlOrPath;
+};
+
+/**
+ * Helper: Delete an image from Cloudinary CDN by URL or relative public_id path
+ * @param {string} imagePathOrUrl Cloudinary image URL or relative path
  */
 export const deleteFromCloudinary = async (imagePathOrUrl) => {
   try {
-    if (!imagePathOrUrl || !imagePathOrUrl.includes('cloudinary.com')) return null;
+    if (!imagePathOrUrl) return null;
 
-    // Extract public_id from Cloudinary URL (e.g. gandhinagar_dating/photos/sample)
-    const parts = imagePathOrUrl.split('/');
+    // Clean out base Cloudinary CDN domain if present
+    const cleanPath = toRelativePhotoPath(imagePathOrUrl);
+
+    // Extract public_id (e.g. gandhinagar_dating/photos/sample)
+    const parts = cleanPath.split('/');
     const filenameWithExt = parts.pop();
-    const uploadIndex = parts.indexOf('upload');
-    const folderPath = parts.slice(uploadIndex + 2).join('/');
-    const publicId = folderPath
-      ? `${folderPath}/${filenameWithExt.split('.')[0]}`
-      : filenameWithExt.split('.')[0];
+    const filenameNoExt = filenameWithExt.split('.')[0];
+
+    // Filter out version prefix if present (e.g. "v1790941873")
+    const folderParts = parts.filter((p) => !/^v\d+$/.test(p));
+    const publicId = folderParts.length > 0 ? `${folderParts.join('/')}/${filenameNoExt}` : filenameNoExt;
 
     const result = await cloudinary.uploader.destroy(publicId);
     console.log(`[Cloudinary Delete] Public ID removed: ${publicId}`);

@@ -2,16 +2,16 @@ import User from '../models/user.model.js';
 import Match from '../models/match.model.js';
 import Message from '../models/message.model.js';
 import { validateCityLocation } from '../config/allowedCities.js';
-import { deleteFromCloudinary } from '../utils/cloudinary.js';
+import { deleteFromCloudinary, toRelativePhotoPath } from '../utils/cloudinary.js';
 
 /**
- * Helper to extract file URLs (handles Cloudinary CDN URLs vs Local File Fallback)
+ * Helper to extract photo paths (returns relative path for Cloudinary CDN)
  */
 const extractPhotoUrls = (files) => {
   if (!files || files.length === 0) return [];
   return files.map((file) => {
     if (file.path && file.path.startsWith('http')) {
-      return file.path; // Cloudinary Secure HTTPS CDN URL
+      return toRelativePhotoPath(file.path); // Relative Cloudinary Path (e.g. v179094.../gandhinagar_dating/photos/xyz.jpg)
     }
     return `/uploads/${file.filename}`; // Local Server Disk Path
   });
@@ -278,8 +278,8 @@ export const deleteGalleryPhoto = async (req, res, next) => {
       });
     }
 
-    // Delete from Cloudinary CDN if it's a Cloudinary URL
-    if (photoUrl && photoUrl.includes('cloudinary.com')) {
+    // Delete from Cloudinary CDN if photo exists
+    if (photoUrl) {
       await deleteFromCloudinary(photoUrl);
     }
 

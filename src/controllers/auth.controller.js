@@ -1,6 +1,7 @@
 import User from '../models/user.model.js';
 import { generateToken } from '../utils/generateToken.js';
 import { validateCityLocation } from '../config/allowedCities.js';
+import { toRelativePhotoPath } from '../utils/cloudinary.js';
 
 /**
  * @desc    Check if a city / GPS location is eligible for registration (Gandhinagar restriction)
@@ -81,10 +82,15 @@ export const registerUser = async (req, res, next) => {
     // 4. Handle photos if uploaded directly during registration
     let initialPhotos = [];
     if (req.files && req.files.length > 0) {
-      initialPhotos = req.files.map((file) => `/uploads/${file.filename}`);
+      initialPhotos = req.files.map((file) => {
+        if (file.path && file.path.startsWith('http')) {
+          return toRelativePhotoPath(file.path);
+        }
+        return `/uploads/${file.filename}`;
+      });
     } else if (req.body.photos) {
-      if (Array.isArray(req.body.photos)) initialPhotos = req.body.photos;
-      else if (typeof req.body.photos === 'string') initialPhotos = [req.body.photos];
+      const rawPhotos = Array.isArray(req.body.photos) ? req.body.photos : [req.body.photos];
+      initialPhotos = rawPhotos.map((p) => toRelativePhotoPath(p));
     }
 
     // 5. Parse interests if passed as JSON string in multipart form
