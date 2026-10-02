@@ -4,12 +4,16 @@ This document provides complete, production-ready REST API & Socket.IO specifica
 
 ---
 
-## 🚀 Base URL Configuration
+## 🌐 Live Production Base URLs (Render.com)
 
+- **Live Production REST API Base URL**: `https://date-node-js.onrender.com/api`
+- **Live WebSocket Socket.IO Base URL**: `wss://date-node-js.onrender.com`
+- **Live Health Check URL**: `https://date-node-js.onrender.com/api/health`
+
+### 💻 Development / Local Testing URLs:
 - **Android Emulator**: `http://10.0.2.2:5000/api`
 - **iOS Simulator**: `http://localhost:5000/api`
-- **Physical Device**: `http://<YOUR_COMPUTER_LOCAL_IP>:5000/api` (e.g. `http://192.168.1.15:5000/api`)
-- **WebSocket Socket.IO**: `ws://10.0.2.2:5000`
+- **Physical Device**: `http://<YOUR_COMPUTER_LOCAL_IP>:5000/api`
 
 ---
 
@@ -132,7 +136,7 @@ Create a new dating profile. Auto-calculates age from DOB & hashes password.
 ```dart
 Future<Map<String, dynamic>> registerUser(Map<String, dynamic> body) async {
   final response = await http.post(
-    Uri.parse('http://10.0.2.2:5000/api/auth/register'),
+    Uri.parse('https://date-node-js.onrender.com/api/auth/register'),
     headers: {'Content-Type': 'application/json'},
     body: jsonEncode(body),
   );
@@ -215,7 +219,7 @@ Authorization: Bearer <TOKEN>
         "gender": "male",
         "bio": "Dev at GIFT City 💻 | Weekend Cyclist 🚴‍♂️",
         "city": "Gandhinagar",
-        "photos": ["/uploads/photo-1.jpg"],
+        "photos": ["https://res.cloudinary.com/w9agauni/image/upload/v1790941873/gandhinagar_dating/photos/rohan.jpg"],
         "interests": ["Tech", "Cycling", "Fitness"],
         "datingIntent": "Long-term relationship",
         "distanceKm": 2,
@@ -264,7 +268,7 @@ Perform a swipe or attach an opener comment (Hinge style).
     "matchedUser": {
       "id": "651a2b3c4d5e6f7a8b9c0d22",
       "name": "Rohan Patel",
-      "photos": ["/uploads/photo-1.jpg"]
+      "photos": ["https://res.cloudinary.com/w9agauni/image/upload/v1790941873/gandhinagar_dating/photos/rohan.jpg"]
     }
   }
 }
@@ -342,7 +346,7 @@ Update bio, interests, dating intentions, AND upload gallery photos in a single 
 ## 16. Delete Gallery Photo
 **`DELETE /api/users/photos`**
 ```json
-{ "photoUrl": "/uploads/photo-123.jpg" }
+{ "photoUrl": "https://res.cloudinary.com/w9agauni/image/upload/v1790941873/gandhinagar_dating/photos/xyz.jpg" }
 ```
 
 ---
@@ -424,7 +428,8 @@ class ChatSocketService {
   late IO.Socket socket;
 
   void initSocket(String userJwtToken) {
-    socket = IO.io('http://10.0.2.2:5000', <String, dynamic>{
+    // Live Production WebSocket Endpoint
+    socket = IO.io('https://date-node-js.onrender.com', <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': false,
       'auth': {'token': userJwtToken},
@@ -433,20 +438,17 @@ class ChatSocketService {
     socket.connect();
 
     socket.onConnect((_) {
-      print('⚡ Socket Connected!');
+      print('⚡ Live Socket Connected!');
     });
 
-    // Receive Message
     socket.on('receive_message', (data) {
       print('📩 New Message: ${data['text']} from ${data['senderName']}');
     });
 
-    // Error (e.g. Free user trying to text Mon-Fri)
     socket.on('error_message', (data) {
       print('⚠️ Chat Error: ${data['message']}');
     });
 
-    // Typing Status
     socket.on('user_typing', (data) {
       print('User typing: ${data['isTyping']}');
     });
