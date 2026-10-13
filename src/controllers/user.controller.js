@@ -1,8 +1,7 @@
 import User from '../models/user.model.js';
 import Match from '../models/match.model.js';
 import Message from '../models/message.model.js';
-import { validateCityLocation } from '../config/allowedCities.js';
-import { deleteFromCloudinary, toRelativePhotoPath } from '../utils/cloudinary.js';
+import { deleteUserData } from '../utils/cleanup.utils.js';
 
 /**
  * Helper to extract photo paths (returns relative path for Cloudinary CDN)
@@ -11,9 +10,9 @@ const extractPhotoUrls = (files) => {
   if (!files || files.length === 0) return [];
   return files.map((file) => {
     if (file.path && file.path.startsWith('http')) {
-      return toRelativePhotoPath(file.path); // Relative Cloudinary Path (e.g. v179094.../gandhinagar_dating/photos/xyz.jpg)
+      return toRelativePhotoPath(file.path);
     }
-    return `/uploads/${file.filename}`; // Local Server Disk Path
+    return `/uploads/${file.filename}`;
   });
 };
 
@@ -29,6 +28,7 @@ export const updateUserProfile = async (req, res, next) => {
     if (!user) {
       return res.status(404).json({
         success: false,
+        code: 'NOT_FOUND',
         message: 'User not found',
       });
     }
@@ -85,6 +85,7 @@ export const upgradePlan = async (req, res, next) => {
     if (!user) {
       return res.status(404).json({
         success: false,
+        code: 'NOT_FOUND',
         message: 'User not found',
       });
     }
@@ -122,15 +123,28 @@ export const changePassword = async (req, res, next) => {
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
+        code: 'VALIDATION_ERROR',
         message: 'Please provide currentPassword and newPassword',
+      });
+    }
+
+    if (typeof newPassword !== 'string' || newPassword.length < 8) {
+      return res.status(422).json({
+        success: false,
+        code: 'VALIDATION_ERROR',
+        message: 'Validation failed',
+        errors: {
+          newPassword: 'Password must be at least 8 characters long.',
+        },
       });
     }
 
     const user = await User.findById(req.user._id).select('+password');
 
-    if (!(await user.matchPassword(currentPassword))) {
+    if (!user || !(await user.matchPassword(currentPassword))) {
       return res.status(401).json({
         success: false,
+        code: 'INVALID_CREDENTIALS',
         message: 'Current password is incorrect',
       });
     }
@@ -160,6 +174,7 @@ export const blockUser = async (req, res, next) => {
     if (!targetUserId) {
       return res.status(400).json({
         success: false,
+        code: 'VALIDATION_ERROR',
         message: 'Please provide targetUserId',
       });
     }
@@ -200,6 +215,7 @@ export const reportUser = async (req, res, next) => {
     if (!targetUserId) {
       return res.status(400).json({
         success: false,
+        code: 'VALIDATION_ERROR',
         message: 'Please provide targetUserId to report',
       });
     }
@@ -230,6 +246,7 @@ export const uploadGalleryPhotos = async (req, res, next) => {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({
         success: false,
+        code: 'VALIDATION_ERROR',
         message: 'Please upload at least one image file',
       });
     }
@@ -238,6 +255,7 @@ export const uploadGalleryPhotos = async (req, res, next) => {
     if (!user) {
       return res.status(404).json({
         success: false,
+        code: 'NOT_FOUND',
         message: 'User not found',
       });
     }
@@ -262,7 +280,7 @@ export const uploadGalleryPhotos = async (req, res, next) => {
 };
 
 /**
- * @desc    Delete a photo from profile gallery by URL (Also removes from Cloudinary CDN if applicable)
+ * @desc    Delete a photo from profile gallery by URL
  * @route   DELETE /api/users/photos
  * @access  Private
  */
@@ -274,11 +292,11 @@ export const deleteGalleryPhoto = async (req, res, next) => {
     if (!user) {
       return res.status(404).json({
         success: false,
+        code: 'NOT_FOUND',
         message: 'User not found',
       });
     }
 
-    // Delete from Cloudinary CDN if photo exists
     if (photoUrl) {
       await deleteFromCloudinary(photoUrl);
     }
@@ -299,67 +317,56 @@ export const deleteGalleryPhoto = async (req, res, next) => {
 };
 
 /**
- * @desc    Update current GPS location & verify city restriction
+ * @desc    Update location (Deprecated no-op endpoint)
  * @route   PUT /api/users/location
  * @access  Private
+ * @deprecated
  */
-export const updateUserLocation = async (req, res, next) => {
-  try {
-    const { city, latitude, longitude } = req.body;
-    const user = await User.findById(req.user._id);
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found',
-      });
-    }
-
-    const userCity = city || user.city || 'Gandhinagar';
-    const validation = validateCityLocation(userCity, latitude, longitude);
-
-    if (latitude && longitude) {
-      user.location = {
-        type: 'Point',
-        coordinates: [parseFloat(longitude), parseFloat(latitude)],
-      };
-    }
-
-    user.city = userCity;
-    user.isCityVerified = validation.isAllowed;
-    await user.save();
-
-    res.status(200).json({
-      success: true,
-      message: validation.reason,
-      data: {
-        isCityVerified: validation.isAllowed,
-        city: user.city,
-        location: user.location,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
+export const updateUserLocation = async (req, res) => {
+  res.status(200).json({
+    success: true,
+    data: {
+      stored: false,
+    },
+  });
 };
 
 /**
- * @desc    Delete user account (App Store Requirement)
+ * @desc    Delete user account with password verification
  * @route   DELETE /api/users/account
  * @access  Private
  */
 export const deleteAccount = async (req, res, next) => {
   try {
+    const { password } = req.body;
     const userId = req.user._id;
 
-    const matches = await Match.find({ users: userId });
-    const matchIds = matches.map((m) => m._id);
+    if (!password) {
+      return res.status(401).json({
+        success: false,
+        code: 'INVALID_CREDENTIALS',
+        message: 'Invalid password',
+      });
+    }
 
-    await Message.deleteMany({ matchId: { $in: matchIds } });
-    await Match.deleteMany({ _id: { $in: matchIds } });
+    const user = await User.findById(userId).select('+password');
+    if (!user) {
+      return res.status(200).json({
+        success: true,
+        message: 'Account deleted successfully',
+      });
+    }
 
-    await User.updateMany({}, { $pull: { matches: userId, likes: userId, passes: userId } });
-    await User.findByIdAndDelete(userId);
+    const isMatch = await user.matchPassword(password);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        code: 'INVALID_CREDENTIALS',
+        message: 'Invalid password',
+      });
+    }
+
+    await deleteUserData(userId);
 
     res.status(200).json({
       success: true,

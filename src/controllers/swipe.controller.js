@@ -1,28 +1,12 @@
 import User from '../models/user.model.js';
 import Match from '../models/match.model.js';
 import Message from '../models/message.model.js';
-import { calculateDistanceKm } from '../config/allowedCities.js';
 import { checkAndResetDailyUsage, PLAN_LIMITS } from '../utils/planHelper.js';
 
 /**
- * Helper to compute distance & human-readable last active status string
- * (e.g. distanceKm: 9, distanceText: "9 km away", locationText: "Gandhinagar (9 km away)", lastActiveText: "Active 20 mins ago")
+ * Helper to compute human-readable last active status string (without distance/coordinates)
  */
-export const formatProfileLocationInfo = (currentUser, candidate) => {
-  const currentCoords = currentUser?.location?.coordinates || [72.6369, 23.2156];
-  const candidateCoords = candidate?.location?.coordinates || [72.6369, 23.2156];
-
-  const distance = calculateDistanceKm(
-    currentCoords[1],
-    currentCoords[0],
-    candidateCoords[1],
-    candidateCoords[0]
-  );
-
-  const roundedDistance = Math.round(distance);
-  const distanceText = `${roundedDistance} km away`;
-  const locationText = `${candidate?.city || 'Gandhinagar'} (${distanceText})`;
-
+export const formatProfileActivityInfo = (candidate) => {
   let lastActiveText = 'Recently active';
   if (candidate?.lastActive) {
     const diffMs = new Date() - new Date(candidate.lastActive);
@@ -42,10 +26,31 @@ export const formatProfileLocationInfo = (currentUser, candidate) => {
   }
 
   return {
-    distanceKm: roundedDistance,
-    distanceText,
-    locationText,
     lastActiveText,
+  };
+};
+
+/**
+ * Format user profile response payload strictly enforcing location privacy
+ */
+export const formatCleanProfile = (profile) => {
+  if (!profile) return null;
+  const activity = formatProfileActivityInfo(profile);
+  return {
+    id: profile._id ? profile._id.toString() : profile.id,
+    name: profile.name || '',
+    age: profile.age || null,
+    gender: profile.gender || null,
+    bio: profile.bio || '',
+    city: profile.city || 'Gandhinagar',
+    state: profile.state || 'Gujarat',
+    photos: profile.photos || [],
+    interests: profile.interests || [],
+    datingIntent: profile.datingIntent || 'Coffee date',
+    isCityVerified: profile.isCityVerified !== undefined ? profile.isCityVerified : true,
+    ...activity,
+    lastActive: profile.lastActive,
+    createdAt: profile.createdAt,
   };
 };
 
@@ -53,7 +58,7 @@ export const formatProfileLocationInfo = (currentUser, candidate) => {
  * @desc    Get potential dating profiles list (Discovery Feed / Swipe Card Stack)
  * @route   GET /api/swipe/feed
  * @access  Private
- * @query   page, limit, minAge, maxAge, gender, maxDistance
+ * @query   page, limit, minAge, maxAge, gender, maxDistance (ignored)
  */
 export const getDiscoveryFeed = async (req, res, next) => {
   try {
@@ -64,13 +69,13 @@ export const getDiscoveryFeed = async (req, res, next) => {
       minAge = 18,
       maxAge = 100,
       gender,
-      maxDistance = 50,
+      // maxDistance is ignored per Product Decision 0.2
     } = req.query;
 
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
 
-    // Collect IDs to exclude (Self, Already Liked, SuperLiked, Already Passed, Blocked Users)
+    // Collect IDs to exclude
     const excludeIds = [
       currentUser._id,
       ...(currentUser.likes || []),
@@ -79,21 +84,23 @@ export const getDiscoveryFeed = async (req, res, next) => {
       ...(currentUser.blockedUsers || []),
     ];
 
-    // 1. Gender Filter: Target candidate's gender
+    // 1. Gender Filter
     const genderQuery = {};
     if (gender) {
       genderQuery.gender = gender;
-    } else if (currentUser.genderPreference !== 'everyone') {
+    } else if (currentUser.genderPreference && currentUser.genderPreference !== 'everyone') {
       genderQuery.gender = currentUser.genderPreference;
     }
 
-    // 2. Mutual Preference Filter: Candidate's preference must also match currentUser's gender
-    const candidatePrefQuery = {
-      $or: [
-        { genderPreference: 'everyone' },
-        { genderPreference: currentUser.gender },
-      ],
-    };
+    // 2. Mutual Preference Filter
+    const candidatePrefQuery = currentUser.gender
+      ? {
+          $or: [
+            { genderPreference: 'everyone' },
+            { genderPreference: currentUser.gender },
+          ],
+        }
+      : {};
 
     // 3. Age Filter
     const ageQuery = {
@@ -104,6 +111,7 @@ export const getDiscoveryFeed = async (req, res, next) => {
     const profiles = await User.find({
       _id: { $nin: excludeIds },
       isActive: true,
+      onboardingCompleted: true,
       ...genderQuery,
       ...candidatePrefQuery,
       ...ageQuery,
@@ -113,31 +121,7 @@ export const getDiscoveryFeed = async (req, res, next) => {
       .limit(limitNum)
       .lean();
 
-    const currentCoords = currentUser.location?.coordinates || [72.6369, 23.2156];
-
-    // Format output with full profile details & distance calculation
-    const feed = profiles
-      .map((profile) => {
-        const locationInfo = formatProfileLocationInfo(currentUser, profile);
-
-        return {
-          id: profile._id.toString(),
-          name: profile.name,
-          age: profile.age,
-          gender: profile.gender,
-          bio: profile.bio || '',
-          city: profile.city || 'Gandhinagar',
-          state: profile.state || 'Gujarat',
-          photos: profile.photos || [],
-          interests: profile.interests || [],
-          datingIntent: profile.datingIntent || 'Coffee date',
-          isCityVerified: profile.isCityVerified || true,
-          ...locationInfo,
-          lastActive: profile.lastActive,
-          createdAt: profile.createdAt,
-        };
-      })
-      .filter((item) => item.distanceKm <= parseInt(maxDistance));
+    const feed = profiles.map((profile) => formatCleanProfile(profile));
 
     res.status(200).json({
       success: true,
@@ -161,7 +145,6 @@ export const getDiscoveryFeed = async (req, res, next) => {
 export const getSingleUserProfile = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const currentUser = req.user;
 
     const profile = await User.findById(id)
       .select('-likes -superLikes -passes -blockedUsers -reportedUsers')
@@ -170,31 +153,15 @@ export const getSingleUserProfile = async (req, res, next) => {
     if (!profile) {
       return res.status(404).json({
         success: false,
+        code: 'NOT_FOUND',
         message: 'Profile not found',
       });
     }
 
-    const locationInfo = formatProfileLocationInfo(currentUser, profile);
-
     res.status(200).json({
       success: true,
       data: {
-        profile: {
-          id: profile._id.toString(),
-          name: profile.name,
-          age: profile.age,
-          gender: profile.gender,
-          bio: profile.bio || '',
-          city: profile.city || 'Gandhinagar',
-          state: profile.state || 'Gujarat',
-          photos: profile.photos || [],
-          interests: profile.interests || [],
-          datingIntent: profile.datingIntent || 'Coffee date',
-          isCityVerified: profile.isCityVerified || true,
-          ...locationInfo,
-          lastActive: profile.lastActive,
-          createdAt: profile.createdAt,
-        },
+        profile: formatCleanProfile(profile),
       },
     });
   } catch (error) {
@@ -203,18 +170,18 @@ export const getSingleUserProfile = async (req, res, next) => {
 };
 
 /**
- * @desc    Swipe Actions: Like, Pass, or SuperLike a user (Enforces daily swipe limits for Free vs ₹39 Premium)
+ * @desc    Swipe Actions: Like, Pass, or SuperLike a user
  * @route   POST /api/swipe
  * @access  Private
- * @body    { targetUserId: "...", action: "like" | "pass" | "superlike", comment: "..." }
  */
 export const swipeUser = async (req, res, next) => {
   try {
-    const { targetUserId, action, comment } = req.body; // action: 'like', 'pass', 'superlike'
+    const { targetUserId, action, comment } = req.body;
 
     if (!targetUserId || !['like', 'pass', 'superlike'].includes(action)) {
       return res.status(400).json({
         success: false,
+        code: 'VALIDATION_ERROR',
         message: 'Please provide valid targetUserId and action ("like", "pass", or "superlike")',
       });
     }
@@ -225,36 +192,39 @@ export const swipeUser = async (req, res, next) => {
     if (!targetUser) {
       return res.status(404).json({
         success: false,
+        code: 'NOT_FOUND',
         message: 'Target user not found',
       });
     }
 
-    // Check and reset daily swipe counters at midnight
     await checkAndResetDailyUsage(currentUser);
 
-    const userPlan = currentUser.plan || 'free';
-    const limits = PLAN_LIMITS[userPlan] || PLAN_LIMITS.free;
+    const isPremiumEnforced = process.env.PREMIUM_ENFORCEMENT === 'true';
+    if (isPremiumEnforced) {
+      const userPlan = currentUser.plan || 'free';
+      const limits = PLAN_LIMITS[userPlan] || PLAN_LIMITS.free;
 
-    // Enforce Daily Limits for Likes & Super Likes
-    if (action === 'like' && currentUser.dailySwipeCount >= limits.maxDailyLikes) {
-      return res.status(403).json({
-        success: false,
-        requiresUpgrade: true,
-        message: `Daily Free swipe limit reached (${limits.maxDailyLikes}/day). Upgrade to Premium (₹39/month) for unlimited swipes!`,
-      });
-    }
+      if (action === 'like' && currentUser.dailySwipeCount >= limits.maxDailyLikes) {
+        return res.status(403).json({
+          success: false,
+          code: 'LIMIT_REACHED',
+          requiresUpgrade: true,
+          message: `Daily Free swipe limit reached (${limits.maxDailyLikes}/day). Upgrade to Premium for unlimited swipes!`,
+        });
+      }
 
-    if (action === 'superlike' && currentUser.dailySuperLikeCount >= limits.maxDailySuperLikes) {
-      return res.status(403).json({
-        success: false,
-        requiresUpgrade: true,
-        message: `Daily Super Like limit reached (${limits.maxDailySuperLikes}/day). Upgrade to Premium (₹39/month) for 5 Super Likes daily!`,
-      });
+      if (action === 'superlike' && currentUser.dailySuperLikeCount >= limits.maxDailySuperLikes) {
+        return res.status(403).json({
+          success: false,
+          code: 'LIMIT_REACHED',
+          requiresUpgrade: true,
+          message: `Daily Super Like limit reached (${limits.maxDailySuperLikes}/day). Upgrade to Premium for 5 Super Likes daily!`,
+        });
+      }
     }
 
     currentUser.lastSwipedUser = targetUserId;
 
-    // --- Action 1: PASS ---
     if (action === 'pass') {
       if (!currentUser.passes.includes(targetUserId)) {
         currentUser.passes.push(targetUserId);
@@ -269,30 +239,16 @@ export const swipeUser = async (req, res, next) => {
       });
     }
 
-    // Increment Usage Counters for Like and SuperLike
-    if (action === 'like') {
-      currentUser.dailySwipeCount += 1;
-    }
+    currentUser.dailySwipeCount += 1;
     if (action === 'superlike') {
-      currentUser.dailySwipeCount += 1;
       currentUser.dailySuperLikeCount += 1;
-    }
-
-    // --- Action 2: SUPER LIKE ---
-    if (action === 'superlike') {
       if (!currentUser.superLikes.includes(targetUserId)) {
         currentUser.superLikes.push(targetUserId);
       }
-      if (!currentUser.likes.includes(targetUserId)) {
-        currentUser.likes.push(targetUserId);
-      }
     }
 
-    // --- Action 3: NORMAL LIKE ---
-    if (action === 'like') {
-      if (!currentUser.likes.includes(targetUserId)) {
-        currentUser.likes.push(targetUserId);
-      }
+    if (!currentUser.likes.includes(targetUserId)) {
+      currentUser.likes.push(targetUserId);
     }
 
     // Check if Mutual Match occurred
@@ -330,7 +286,6 @@ export const swipeUser = async (req, res, next) => {
         await match.save();
       }
 
-      // Create initial message if comment provided
       if (comment) {
         await Message.create({
           matchId: match._id,
@@ -348,21 +303,11 @@ export const swipeUser = async (req, res, next) => {
         message: `It's a Match! You and ${targetUser.name} connected! 🎉`,
         data: {
           matchId: match._id.toString(),
-          matchedUser: {
-            id: targetUser._id.toString(),
-            name: targetUser.name,
-            age: targetUser.age,
-            photos: targetUser.photos,
-            bio: targetUser.bio,
-            city: targetUser.city,
-            interests: targetUser.interests,
-            datingIntent: targetUser.datingIntent,
-          },
+          matchedUser: formatCleanProfile(targetUser),
         },
       });
     }
 
-    // --- Single-sided swipe WITH A COMMENT ---
     if (comment && comment.trim().length > 0) {
       await currentUser.save();
 
@@ -388,7 +333,6 @@ export const swipeUser = async (req, res, next) => {
       });
     }
 
-    // Single-sided swipe without comment
     await currentUser.save();
 
     res.status(200).json({
@@ -418,22 +362,17 @@ export const getPendingRequests = async (req, res, next) => {
     })
       .populate({
         path: 'requestedBy',
-        select: 'name email age photos bio city interests datingIntent lastActive location',
+        select: 'name email age photos bio city state interests datingIntent lastActive',
       })
       .sort({ createdAt: -1 });
 
     const formattedRequests = requests.map((reqItem) => {
       const sender = reqItem.requestedBy ? reqItem.requestedBy.toObject() : {};
-      const locationInfo = formatProfileLocationInfo(req.user, sender);
-
       return {
         requestId: reqItem._id.toString(),
         comment: reqItem.comment,
         createdAt: reqItem.createdAt,
-        sender: {
-          ...sender,
-          ...locationInfo,
-        },
+        sender: formatCleanProfile(sender),
       };
     });
 
@@ -450,7 +389,7 @@ export const getPendingRequests = async (req, res, next) => {
 };
 
 /**
- * @desc    Respond (Accept or Decline) a pending match request with comment
+ * @desc    Respond (Accept or Decline) a pending match request
  * @route   POST /api/swipe/respond
  * @access  Private
  */
@@ -462,6 +401,7 @@ export const respondToMatchRequest = async (req, res, next) => {
     if (!requestId || !['accept', 'decline'].includes(action)) {
       return res.status(400).json({
         success: false,
+        code: 'VALIDATION_ERROR',
         message: 'Please provide valid requestId and action ("accept" or "decline")',
       });
     }
@@ -475,6 +415,7 @@ export const respondToMatchRequest = async (req, res, next) => {
     if (!match) {
       return res.status(404).json({
         success: false,
+        code: 'NOT_FOUND',
         message: 'Pending request not found or already processed',
       });
     }
@@ -487,7 +428,7 @@ export const respondToMatchRequest = async (req, res, next) => {
       match.status = 'rejected';
       await match.save();
 
-      if (!currentUser.passes.includes(senderId)) {
+      if (currentUser && !currentUser.passes.includes(senderId)) {
         currentUser.passes.push(senderId);
         await currentUser.save();
       }
@@ -499,15 +440,14 @@ export const respondToMatchRequest = async (req, res, next) => {
       });
     }
 
-    // Action is ACCEPT
     match.status = 'accepted';
     await match.save();
 
-    if (!currentUser.matches.includes(senderId)) {
+    if (currentUser && !currentUser.matches.includes(senderId)) {
       currentUser.matches.push(senderId);
       await currentUser.save();
     }
-    if (!senderUser.matches.includes(userId)) {
+    if (senderUser && !senderUser.matches.includes(userId)) {
       senderUser.matches.push(userId);
       await senderUser.save();
     }
@@ -525,18 +465,10 @@ export const respondToMatchRequest = async (req, res, next) => {
       success: true,
       action: 'accept',
       isMatch: true,
-      message: `Request accepted! You and ${senderUser.name} are now matched! 🎉`,
+      message: `Request accepted! You and ${senderUser ? senderUser.name : 'user'} are now matched! 🎉`,
       data: {
         matchId: match._id.toString(),
-        matchedUser: {
-          id: senderUser._id.toString(),
-          name: senderUser.name,
-          age: senderUser.age,
-          photos: senderUser.photos,
-          bio: senderUser.bio,
-          city: senderUser.city,
-          interests: senderUser.interests,
-        },
+        matchedUser: formatCleanProfile(senderUser),
       },
     });
   } catch (error) {
@@ -556,6 +488,7 @@ export const undoLastSwipe = async (req, res, next) => {
     if (!currentUser.lastSwipedUser) {
       return res.status(400).json({
         success: false,
+        code: 'NO_SWIPE_TO_UNDO',
         message: 'No recent swipe to undo. You can only rewind the immediate last swipe!',
       });
     }
@@ -595,6 +528,7 @@ export const unmatchUser = async (req, res, next) => {
     if (!match) {
       return res.status(404).json({
         success: false,
+        code: 'NOT_FOUND',
         message: 'Match not found or access denied',
       });
     }
@@ -619,7 +553,7 @@ export const unmatchUser = async (req, res, next) => {
 };
 
 /**
- * @desc    Get user's mutual accepted matches list with unread counts for chat tab
+ * @desc    Get user's mutual accepted matches list with unread counts
  * @route   GET /api/swipe/matches
  * @access  Private
  */
@@ -630,7 +564,7 @@ export const getMatches = async (req, res, next) => {
     const matches = await Match.find({ users: userId, status: 'accepted' })
       .populate({
         path: 'users',
-        select: 'name email age photos bio city interests datingIntent lastActive location',
+        select: 'name email age photos bio city state interests datingIntent lastActive',
       })
       .sort({ updatedAt: -1 });
 
@@ -646,18 +580,12 @@ export const getMatches = async (req, res, next) => {
           isRead: false,
         });
 
-        const otherUserObj = otherUser ? (otherUser.toObject ? otherUser.toObject() : otherUser) : {};
-        const locationInfo = formatProfileLocationInfo(req.user, otherUserObj);
-
         return {
           matchId: match._id.toString(),
           lastMessage: match.lastMessage,
           lastMessageAt: match.lastMessageAt,
           unreadCount,
-          user: {
-            ...otherUserObj,
-            ...locationInfo,
-          },
+          user: formatCleanProfile(otherUser),
         };
       })
     );

@@ -8,12 +8,12 @@ const messageSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    sender: {
+    senderId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
     },
-    receiver: {
+    receiverId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
@@ -21,13 +21,19 @@ const messageSchema = new mongoose.Schema(
     text: {
       type: String,
       trim: true,
-      default: '',
+      required: true,
+      maxLength: 1000,
     },
-    mediaUrl: {
+    clientMessageId: {
       type: String,
-      default: '', // Optional photo shared in chat
+      default: null,
+      index: true,
     },
-    isRead: {
+    sentAt: {
+      type: Date,
+      default: Date.now,
+    },
+    readByPartner: {
       type: Boolean,
       default: false,
     },

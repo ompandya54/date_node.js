@@ -1,13 +1,22 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import {
+  GENDER_ENUM,
+  DATING_INTENT_ENUM,
+  HABIT_ENUM,
+} from '../utils/shared.utils.js';
+
+const photoSchema = new mongoose.Schema(
+  {
+    id: { type: String, required: true },
+    url: { type: String, required: true },
+    moderationStatus: { type: String, enum: ['approved', 'pending', 'flagged'], default: 'approved' },
+  },
+  { _id: false }
+);
 
 const userSchema = new mongoose.Schema(
   {
-    name: {
-      type: String,
-      required: [true, 'Please provide a name'],
-      trim: true,
-    },
     email: {
       type: String,
       required: [true, 'Please provide an email address'],
@@ -18,30 +27,55 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, 'Please provide a password'],
-      minlength: [6, 'Password must be at least 6 characters long'],
       select: false,
+    },
+    authProvider: {
+      type: String,
+      enum: ['password', 'google'],
+      default: 'password',
+    },
+    googleId: {
+      type: String,
+      default: null,
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    otpCode: {
+      type: String,
+      default: null,
+    },
+    otpExpires: {
+      type: Date,
+      default: null,
+    },
+    onboardingCompleted: {
+      type: Boolean,
+      default: false,
+    },
+    name: {
+      type: String,
+      trim: true,
+      maxLength: [50, 'Name cannot exceed 50 characters'],
     },
     dateOfBirth: {
       type: Date,
-      required: [true, 'Please provide your date of birth'],
     },
     age: {
       type: Number,
     },
     gender: {
       type: String,
-      enum: ['male', 'female', 'other'],
-      required: [true, 'Please specify your gender'],
+      enum: GENDER_ENUM,
     },
-    genderPreference: {
-      type: String,
-      enum: ['male', 'female', 'everyone'],
-      default: 'everyone',
+    interestedIn: {
+      type: [String],
+      enum: GENDER_ENUM,
+      default: ['woman', 'man'],
     },
     city: {
       type: String,
-      required: [true, 'City is required'],
       default: 'Gandhinagar',
       trim: true,
     },
@@ -49,121 +83,67 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: 'Gujarat',
     },
-    // GeoJSON Point location for distance filtering
-    location: {
-      type: {
-        type: String,
-        enum: ['Point'],
-        default: 'Point',
-      },
-      coordinates: {
-        type: [Number], // [longitude, latitude]
-        default: [72.6369, 23.2156], // Default Gandhinagar coordinates
-      },
-    },
-    isCityVerified: {
-      type: Boolean,
-      default: true,
-    },
     bio: {
       type: String,
-      default: '',
+      default: null,
       maxLength: [500, 'Bio cannot exceed 500 characters'],
     },
     photos: {
-      type: [String], // Array of uploaded image URLs (max 6)
+      type: [photoSchema],
       default: [],
     },
-    interests: {
-      type: [String], // e.g. ["Coffee", "Music", "Fitness", "Travel", "Foodie"]
+    interestIds: {
+      type: [String],
       default: [],
     },
     datingIntent: {
       type: String,
-      enum: [
-        'Long-term relationship',
-        'Casual dating',
-        'Coffee date',
-        'Making new friends',
-        'Not sure yet',
-      ],
-      default: 'Coffee date',
+      enum: DATING_INTENT_ENUM,
+      default: 'longTermRelationship',
     },
-    // Subscription & Plan Limits (Free vs ₹39 Premium)
-    plan: {
+    drinking: {
       type: String,
-      enum: ['free', 'premium'],
-      default: 'free',
-    },
-    planExpiresAt: {
-      type: Date,
+      enum: HABIT_ENUM,
       default: null,
     },
-    dailySwipeCount: {
-      type: Number,
-      default: 0,
-    },
-    dailySuperLikeCount: {
-      type: Number,
-      default: 0,
-    },
-    lastSwipeResetDate: {
-      type: Date,
-      default: Date.now,
-    },
-    // Swiping Tracking
-    likes: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-      },
-    ],
-    superLikes: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-      },
-    ],
-    passes: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-      },
-    ],
-    // Tracks only the immediate last swipe for 1-step Rewind/Undo
-    lastSwipedUser: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+    smoking: {
+      type: String,
+      enum: HABIT_ENUM,
       default: null,
     },
-    matches: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-      },
-    ],
-    // Safety & Moderation
-    blockedUsers: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-      },
-    ],
-    reportedUsers: [
-      {
-        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-        reason: { type: String, default: '' },
-        createdAt: { type: Date, default: Date.now },
-      },
-    ],
-    isActive: {
+    // Privacy settings (B2)
+    hideProfile: {
+      type: Boolean,
+      default: false,
+    },
+    locationDiscoveryEnabled: {
       type: Boolean,
       default: true,
     },
-    lastActive: {
-      type: Date,
-      default: Date.now,
+    // Crossed Paths settings (B8)
+    recordingEnabled: {
+      type: Boolean,
+      default: true,
     },
+    // Discovery & Swiping (B3)
+    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    passes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    actedOn: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    matches: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    // Refresh Tokens & Auth
+    refreshTokens: [
+      {
+        tokenHash: { type: String, required: true },
+        createdAt: { type: Date, default: Date.now },
+        expiresAt: { type: Date, required: true },
+      },
+    ],
+    resetPasswordToken: { type: String, default: null },
+    resetPasswordExpires: { type: Date, default: null },
+    deviceTokens: [{ type: String }],
+    isActive: { type: Boolean, default: true },
+    lastActive: { type: Date, default: Date.now },
   },
   {
     timestamps: true,
@@ -173,24 +153,27 @@ const userSchema = new mongoose.Schema(
         delete ret._id;
         delete ret.__v;
         delete ret.password;
+        delete ret.otpCode;
+        delete ret.otpExpires;
+        delete ret.refreshTokens;
+        delete ret.resetPasswordToken;
+        delete ret.resetPasswordExpires;
+        delete ret.location;
+        delete ret.latitude;
+        delete ret.longitude;
         delete ret.likes;
-        delete ret.superLikes;
         delete ret.passes;
+        delete ret.actedOn;
         delete ret.blockedUsers;
-        delete ret.reportedUsers;
-        delete ret.lastSwipedUser;
         return ret;
       },
     },
   }
 );
 
-// Create 2dsphere index on location field for GeoSpatial distance queries
-userSchema.index({ location: '2dsphere' });
-
 // Pre-save hook: Hash password and auto-calculate age from dateOfBirth
 userSchema.pre('save', async function () {
-  if (this.isModified('password')) {
+  if (this.isModified('password') && this.password) {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
   }
@@ -202,8 +185,8 @@ userSchema.pre('save', async function () {
   }
 });
 
-// Method to check password match
 userSchema.methods.matchPassword = async function (enteredPassword) {
+  if (!this.password) return false;
   return await bcrypt.compare(enteredPassword, this.password);
 };
 

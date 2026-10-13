@@ -9,34 +9,36 @@ const matchSchema = new mongoose.Schema(
         required: true,
       },
     ],
-    status: {
+    matchedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    seenBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
+    lastMessageText: {
       type: String,
-      enum: ['pending', 'accepted', 'rejected'],
-      default: 'accepted', // 'pending' when sent with a Comment/Note
-    },
-    comment: {
-      type: String,
-      default: '', // First comment/note attached during swipe
-    },
-    requestedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-    },
-    requestedTo: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-    },
-    lastMessage: {
-      type: String,
-      default: 'You matched! Say hello 👋',
+      default: null,
     },
     lastMessageSender: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
+      default: null,
     },
     lastMessageAt: {
       type: Date,
-      default: Date.now,
+      default: null,
+    },
+    icebreaker: {
+      questionId: { type: String, default: null },
+      answers: {
+        type: Map,
+        of: String,
+        default: {},
+      },
     },
   },
   {
@@ -51,6 +53,8 @@ const matchSchema = new mongoose.Schema(
     },
   }
 );
+
+matchSchema.index({ users: 1 });
 
 const Match = mongoose.model('Match', matchSchema);
 export default Match;

@@ -5,12 +5,12 @@
 // Daily Limits Configuration
 export const PLAN_LIMITS = {
   free: {
-    maxDailyLikes: 15, // 15 right swipes per day
-    maxDailySuperLikes: 1, // 1 super like per day
+    maxDailyLikes: 15,
+    maxDailySuperLikes: 1,
   },
   premium: {
-    maxDailyLikes: 100, // 100 right swipes per day
-    maxDailySuperLikes: 5, // 5 super likes per day
+    maxDailyLikes: 100,
+    maxDailySuperLikes: 5,
   },
 };
 
@@ -28,7 +28,7 @@ export const checkAndResetDailyUsage = async (user) => {
     user.planExpiresAt = null;
   }
 
-  // 2. Check Daily Reset (if last reset was on a previous calendar day)
+  // 2. Check Daily Reset
   const lastReset = user.lastSwipeResetDate ? new Date(user.lastSwipeResetDate) : new Date(0);
   const isSameDay =
     now.getFullYear() === lastReset.getFullYear() &&
@@ -43,11 +43,22 @@ export const checkAndResetDailyUsage = async (user) => {
 };
 
 /**
- * Check if user is eligible to send text messages based on Plan & Weekend Promo
+ * Check if user is eligible to send text messages based on PREMIUM_ENFORCEMENT, Plan & Weekend Promo
  * @param {object} user User object
  * @returns {object} { canChat: boolean, isWeekend: boolean, reason: string }
  */
 export const canUserSendChat = (user) => {
+  const isEnforced = process.env.PREMIUM_ENFORCEMENT === 'true';
+
+  // If PREMIUM_ENFORCEMENT is false (default for launch), ANY user can send messages at any time.
+  if (!isEnforced) {
+    return {
+      canChat: true,
+      isWeekend: false,
+      reason: 'Messaging enabled for launch.',
+    };
+  }
+
   const now = new Date();
   const dayOfWeek = now.getDay(); // 0 = Sunday, 6 = Saturday
   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;

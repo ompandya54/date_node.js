@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import app from './app.js';
 import { connectDB } from './config/db.js';
 import { setupSocketIO } from './socket/chat.socket.js';
+import { seedGandhinagarVenues } from './utils/seedVenues.js';
 
 // Load environment variables
 dotenv.config();
@@ -21,6 +22,8 @@ const io = new Server(server, {
   },
 });
 
+app.set('io', io);
+
 // Initialize Socket.IO event listeners
 setupSocketIO(io);
 
@@ -28,6 +31,7 @@ setupSocketIO(io);
 const startServer = async () => {
   try {
     await connectDB();
+    await seedGandhinagarVenues();
 
     server.listen(PORT, () => {
       console.log(`\n==================================================`);
