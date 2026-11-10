@@ -1,8 +1,8 @@
 {
   "info": {
-    "_postman_id": "gandhinagar-dating-api-collection-b1-b9",
+    "_postman_id": "gandhinagar-dating-api-collection-b1-b9-v2",
     "name": "💖 Gandhinagar Dating App API (B1 to B9 Complete)",
-    "description": "Complete Postman collection covering all B1 to B9 steps of Gandhinagar Dating App API",
+    "description": "Complete Postman collection covering all B1 to B9 steps of Gandhinagar Dating App API including Google Auth, Email OTP, and Password Reset.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -20,7 +20,7 @@
       "name": "B1: Auth & Session",
       "item": [
         {
-          "name": "Register User",
+          "name": "Register User (Minimal)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -41,6 +41,66 @@
               "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123\"\n}"
             },
             "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Google Sign-In",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"google_id_token_sample\",\n  \"email\": \"user@gmail.com\",\n  \"googleId\": \"10982374982374\",\n  \"name\": \"Google User\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/google", "host": ["{{baseUrl}}"], "path": ["auth", "google"] }
+          }
+        },
+        {
+          "name": "Send Email OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/send-otp", "host": ["{{baseUrl}}"], "path": ["auth", "send-otp"] }
+          }
+        },
+        {
+          "name": "Verify Email OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"otp\": \"123456\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/verify-otp", "host": ["{{baseUrl}}"], "path": ["auth", "verify-otp"] }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/forgot-password", "host": ["{{baseUrl}}"], "path": ["auth", "forgot-password"] }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"otp\": \"123456\",\n  \"newPassword\": \"NewPassword123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/reset-password", "host": ["{{baseUrl}}"], "path": ["auth", "reset-password"] }
           }
         },
         {
@@ -79,6 +139,21 @@
           }
         },
         {
+          "name": "Delete Account",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"Password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/users/account", "host": ["{{baseUrl}}"], "path": ["users", "account"] }
+          }
+        },
+        {
           "name": "Get Interests Catalog",
           "request": {
             "method": "GET",
@@ -90,6 +165,20 @@
     {
       "name": "B2: Photos, Onboarding & Profile",
       "item": [
+        {
+          "name": "Upload Photo",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": [] }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/photos", "host": ["{{baseUrl}}"], "path": ["photos"] }
+          }
+        },
         {
           "name": "Complete Onboarding",
           "request": {
@@ -337,11 +426,50 @@
           }
         },
         {
+          "name": "Mark Notification Read",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/notifications/{{notificationId}}/read", "host": ["{{baseUrl}}"], "path": ["notifications", "{{notificationId}}", "read"] }
+          }
+        },
+        {
           "name": "Mark All Read",
           "request": {
             "method": "POST",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
             "url": { "raw": "{{baseUrl}}/notifications/read-all", "host": ["{{baseUrl}}"], "path": ["notifications", "read-all"] }
+          }
+        },
+        {
+          "name": "Clear All Notifications",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/notifications", "host": ["{{baseUrl}}"], "path": ["notifications"] }
+          }
+        },
+        {
+          "name": "Get Notification Preferences",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/notifications/preferences", "host": ["{{baseUrl}}"], "path": ["notifications", "preferences"] }
+          }
+        },
+        {
+          "name": "Update Notification Preferences",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"likes\": true,\n  \"matches\": true,\n  \"messages\": true,\n  \"icebreakers\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/notifications/preferences", "host": ["{{baseUrl}}"], "path": ["notifications", "preferences"] }
           }
         },
         {
@@ -357,6 +485,14 @@
               "raw": "{\n  \"token\": \"fcm_token_sample\",\n  \"platform\": \"android\"\n}"
             },
             "url": { "raw": "{{baseUrl}}/devices", "host": ["{{baseUrl}}"], "path": ["devices"] }
+          }
+        },
+        {
+          "name": "Unregister Device Token",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/devices/{{deviceToken}}", "host": ["{{baseUrl}}"], "path": ["devices", "{{deviceToken}}"] }
           }
         }
       ]
@@ -496,6 +632,37 @@
             "method": "POST",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
             "url": { "raw": "{{baseUrl}}/crossed-paths/{{encounterId}}/dismiss", "host": ["{{baseUrl}}"], "path": ["crossed-paths", "{{encounterId}}", "dismiss"] }
+          }
+        },
+        {
+          "name": "Get Crossed Paths Settings",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/crossed-paths/settings", "host": ["{{baseUrl}}"], "path": ["crossed-paths", "settings"] }
+          }
+        },
+        {
+          "name": "Update Crossed Paths Settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recordingEnabled\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/crossed-paths/settings", "host": ["{{baseUrl}}"], "path": ["crossed-paths", "settings"] }
+          }
+        },
+        {
+          "name": "Clear All Crossed Paths",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/crossed-paths", "host": ["{{baseUrl}}"], "path": ["crossed-paths"] }
           }
         }
       ]

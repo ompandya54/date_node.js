@@ -69,6 +69,7 @@ router.get('/health/ready', async (req, res) => {
 // Mount B1-B8 core sub-routers
 router.use('/auth', authRoutes);
 router.use('/photos', photosRoutes);
+router.use('/photo', photosRoutes);
 router.use('/onboarding', onboardingRoutes);
 router.use('/profile', profileRoutes);
 router.use('/settings', settingsRoutes);

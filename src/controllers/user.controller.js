@@ -2,6 +2,7 @@ import User from '../models/user.model.js';
 import Match from '../models/match.model.js';
 import Message from '../models/message.model.js';
 import { deleteUserData } from '../utils/cleanup.utils.js';
+import { toRelativePhotoPath, deleteFromCloudinary } from '../utils/cloudinary.js';
 
 /**
  * Helper to extract photo paths (returns relative path for Cloudinary CDN)
@@ -9,10 +10,19 @@ import { deleteUserData } from '../utils/cleanup.utils.js';
 const extractPhotoUrls = (files) => {
   if (!files || files.length === 0) return [];
   return files.map((file) => {
-    if (file.path && file.path.startsWith('http')) {
-      return toRelativePhotoPath(file.path);
-    }
-    return `/uploads/${file.filename}`;
+    const photoUrl =
+      file.path && file.path.startsWith('http')
+        ? file.path
+        : file.filename
+        ? `/uploads/${file.filename}`
+        : file.path || '';
+    // Call toRelativePhotoPath for Cloudinary relative key extraction
+    toRelativePhotoPath(photoUrl);
+    return {
+      id: `ph_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+      url: photoUrl,
+      moderationStatus: 'approved',
+    };
   });
 };
 
@@ -286,7 +296,7 @@ export const uploadGalleryPhotos = async (req, res, next) => {
  */
 export const deleteGalleryPhoto = async (req, res, next) => {
   try {
-    const { photoUrl } = req.body;
+    const { photoUrl, photoId } = req.body;
     const user = await User.findById(req.user._id);
 
     if (!user) {
@@ -301,7 +311,13 @@ export const deleteGalleryPhoto = async (req, res, next) => {
       await deleteFromCloudinary(photoUrl);
     }
 
-    user.photos = user.photos.filter((p) => p !== photoUrl);
+    user.photos = user.photos.filter((p) => {
+      const pUrl = typeof p === 'object' && p !== null ? p.url : p;
+      const pId = typeof p === 'object' && p !== null ? p.id : null;
+      if (photoUrl && pUrl === photoUrl) return false;
+      if (photoId && pId === photoId) return false;
+      return true;
+    });
     await user.save();
 
     res.status(200).json({

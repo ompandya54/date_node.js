@@ -18,6 +18,14 @@ export const errorHandler = (err, req, res, next) => {
   let message = err.message || 'Internal Server Error';
   let errors = err.errors || undefined;
 
+  // Handling Multer Upload Errors (e.g. LIMIT_FILE_SIZE)
+  if (err.name === 'MulterError') {
+    statusCode = 422;
+    code = err.code || 'VALIDATION_ERROR';
+    message = err.message;
+    errors = { file: err.message };
+  }
+
   // Handling Mongoose Duplicate Key Error (e.g. Email already exists)
   if (err.code === 11000) {
     statusCode = 422;
