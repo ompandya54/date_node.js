@@ -18,6 +18,7 @@ import crossedPathsRoutes from './crossedPaths.routes.js';
 import metaRoutes from './meta.routes.js';
 import userRoutes from './user.routes.js';
 import swipeRoutes from './swipe.routes.js';
+import feedRoutes from './feed.routes.js';
 
 const router = express.Router();
 
@@ -74,6 +75,7 @@ router.use('/onboarding', onboardingRoutes);
 router.use('/profile', profileRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/discover', discoverRoutes);
+router.use('/feed', feedRoutes);
 router.use('/likes-you', likesYouRoutes);
 router.use('/matches', matchesRoutes);
 router.use('/safety', safetyRoutes);
@@ -82,6 +84,7 @@ router.use('/notifications', notificationRoutes);
 router.use('/devices', deviceRoutes);
 router.use('/nearby', nearbyRoutes);
 router.use('/places', placeRoutes);
+router.use('/place', placeRoutes);
 router.use('/crossed-paths', crossedPathsRoutes);
 router.use('/meta', metaRoutes);
 

@@ -218,17 +218,28 @@ export const updateNotificationPreferences = async (req, res, next) => {
  */
 export const registerDevice = async (req, res, next) => {
   try {
-    const { token, platform } = req.body;
+    const { token } = req.body;
+    const platform = (req.body.platform || 'android').toLowerCase();
     const viewerId = req.user._id;
 
-    if (!token || !platform || !['android', 'ios'].includes(platform)) {
+    if (!token) {
       return res.status(422).json({
         success: false,
         code: 'VALIDATION_ERROR',
-        message: 'Valid token and platform ("android" or "ios") are required.',
+        message: 'Device token is required.',
         errors: {
-          token: !token ? 'Device token is required' : undefined,
-          platform: !['android', 'ios'].includes(platform) ? 'Platform must be android or ios' : undefined,
+          token: 'Device token is required',
+        },
+      });
+    }
+
+    if (!['android', 'ios'].includes(platform)) {
+      return res.status(422).json({
+        success: false,
+        code: 'VALIDATION_ERROR',
+        message: 'Platform must be android or ios.',
+        errors: {
+          platform: 'Platform must be android or ios',
         },
       });
     }
@@ -256,18 +267,25 @@ export const registerDevice = async (req, res, next) => {
 
 /**
  * @desc    Unregister device push token
- * @route   DELETE /api/devices/:token
+ * @route   DELETE /api/devices/:token or DELETE /api/notifications/device-token
  * @access  Private
  */
 export const unregisterDevice = async (req, res, next) => {
   try {
-    const { token } = req.params;
+    const token = req.params.token || req.body?.token || req.query?.token;
     const viewerId = req.user._id;
 
-    await Device.deleteOne({ token });
-    await User.findByIdAndUpdate(viewerId, {
-      $pull: { deviceTokens: token },
-    });
+    if (token) {
+      await Device.deleteOne({ token });
+      await User.findByIdAndUpdate(viewerId, {
+        $pull: { deviceTokens: token },
+      });
+    } else {
+      await Device.deleteMany({ userId: viewerId });
+      await User.findByIdAndUpdate(viewerId, {
+        $set: { deviceTokens: [] },
+      });
+    }
 
     res.status(200).json({
       success: true,

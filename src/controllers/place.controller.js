@@ -343,6 +343,7 @@ export const getCurrentPlaceSession = async (req, res, next) => {
       return res.status(200).json({
         success: true,
         data: {
+          isActive: false,
           session: null,
         },
       });
@@ -351,6 +352,7 @@ export const getCurrentPlaceSession = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: {
+        isActive: true,
         session: {
           id: session._id.toString(),
           placeId: session.placeId,

@@ -172,6 +172,7 @@ export const getCurrentNearbySession = async (req, res, next) => {
       return res.status(200).json({
         success: true,
         data: {
+          isActive: false,
           session: null,
         },
       });
@@ -180,6 +181,7 @@ export const getCurrentNearbySession = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: {
+        isActive: true,
         session: {
           id: session._id.toString(),
           startedAt: session.startedAt,

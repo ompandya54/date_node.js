@@ -16,6 +16,8 @@ router.post('/nearby-search', searchNearbyPlaces);
 router.get('/popular', getPopularPlaces);
 router.post('/sessions', startPlaceSession);
 router.get('/sessions/current', getCurrentPlaceSession);
+router.get('/session/status', getCurrentPlaceSession);
+router.get('/sessions/status', getCurrentPlaceSession);
 router.delete('/sessions/current', stopPlaceSession);
 router.get('/people', getPlacePeople);
 

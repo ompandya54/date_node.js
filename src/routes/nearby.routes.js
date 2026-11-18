@@ -12,6 +12,8 @@ router.use(protect);
 
 router.post('/sessions', startNearbySession);
 router.get('/sessions/current', getCurrentNearbySession);
+router.get('/session/status', getCurrentNearbySession);
+router.get('/sessions/status', getCurrentNearbySession);
 router.delete('/sessions/current', stopNearbySession);
 router.get('/people', getNearbyPeople);
 
