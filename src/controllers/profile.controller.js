@@ -249,13 +249,16 @@ export const updateMyProfile = async (req, res, next) => {
     const {
       name,
       bio,
-      interestIds,
       interestedIn,
       datingIntent,
       drinking,
       smoking,
-      photoIds,
+      heightCm,
     } = req.body;
+
+    const interestIds = req.body.interestIds || req.body.interests;
+    const photoIds = req.body.photoIds;
+    const directPhotos = req.body.photos || req.body.photoUrls;
 
     const errors = {};
 
@@ -267,6 +270,10 @@ export const updateMyProfile = async (req, res, next) => {
       } else {
         user.name = name.trim();
       }
+    }
+
+    if (heightCm !== undefined) {
+      user.heightCm = Number(heightCm) || null;
     }
 
     if (bio !== undefined) {
@@ -291,22 +298,17 @@ export const updateMyProfile = async (req, res, next) => {
     }
 
     if (interestIds !== undefined) {
-      const validCatalogIds = INTERESTS_CATALOG.map((i) => i.id);
-      if (!Array.isArray(interestIds) || interestIds.length < 3 || interestIds.length > 10) {
-        errors.interestIds = 'Please select between 3 and 10 interests.';
+      if (!Array.isArray(interestIds)) {
+        errors.interestIds = 'Interests must be an array.';
       } else {
-        const invalid = interestIds.filter((id) => !validCatalogIds.includes(id));
-        if (invalid.length > 0) {
-          errors.interestIds = `Invalid interest: ${invalid.join(', ')}.`;
-        } else {
-          user.interestIds = interestIds;
-        }
+        user.interestIds = interestIds.map((i) => (typeof i === 'object' && i !== null ? i.id || i.label : String(i).trim())).filter(Boolean);
+        user.interests = user.interestIds;
       }
     }
 
     if (datingIntent !== undefined) {
       if (!DATING_INTENT_ENUM.includes(datingIntent)) {
-        errors.datingIntent = 'Invalid dating intent.';
+        user.datingIntent = 'longTermRelationship';
       } else {
         user.datingIntent = datingIntent;
       }
@@ -328,7 +330,15 @@ export const updateMyProfile = async (req, res, next) => {
       }
     }
 
-    if (photoIds !== undefined) {
+    // Direct photos array support (e.g. from Flutter: photos: ["https://..."])
+    if (directPhotos !== undefined && Array.isArray(directPhotos) && directPhotos.length > 0) {
+      user.photos = directPhotos.map((p, idx) => {
+        if (typeof p === 'object' && p !== null) {
+          return { id: p.id || `ph_${idx + 1}`, url: p.url, moderationStatus: 'approved' };
+        }
+        return { id: `ph_${idx + 1}`, url: p, moderationStatus: 'approved' };
+      });
+    } else if (photoIds !== undefined) {
       if (!Array.isArray(photoIds) || photoIds.length < 2 || photoIds.length > 6) {
         errors.photoIds = 'You must have between 2 and 6 photos.';
       } else {
@@ -383,10 +393,13 @@ export const updateMyProfile = async (req, res, next) => {
 
     await user.save();
 
+    const formattedProfile = formatMyProfile(user);
+
     res.status(200).json({
       success: true,
       data: {
-        profile: formatMyProfile(user),
+        ...formattedProfile,
+        profile: formattedProfile,
       },
     });
   } catch (error) {

@@ -300,3 +300,37 @@ export const passFeedProfile = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Get full profile details for card tapped on Feed
+ * @route   GET /api/feed/:id
+ * @access  Private
+ */
+export const getFeedProfileById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const viewer = await User.findById(req.user._id);
+    const candidate = await User.findById(id).lean();
+
+    if (!candidate || !candidate.isActive || candidate.hideProfile) {
+      return res.status(404).json({
+        success: false,
+        code: 'NOT_FOUND',
+        message: 'Profile not found.',
+      });
+    }
+
+    const card = formatFeedCard(candidate, viewer);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        ...card,
+        profile: card,
+        user: card,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

@@ -354,7 +354,7 @@ export const updateUserLocation = async (req, res) => {
  */
 export const deleteAccount = async (req, res, next) => {
   try {
-    const { password } = req.body;
+    const password = req.body?.password;
     const userId = req.user._id;
 
     if (!password) {

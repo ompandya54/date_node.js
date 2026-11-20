@@ -115,13 +115,14 @@ const deterministicPlaceSort = (sessionId, placeId) => {
 export const searchNearbyPlaces = async (req, res, next) => {
   try {
     const viewerId = req.user._id;
-    const { latitude, longitude } = req.body;
+    const latitude = Number(req.body.latitude ?? req.body.lat);
+    const longitude = Number(req.body.longitude ?? req.body.lng);
 
-    if (typeof latitude !== 'number' || typeof longitude !== 'number' || isNaN(latitude) || isNaN(longitude)) {
+    if (isNaN(latitude) || isNaN(longitude)) {
       return res.status(422).json({
         success: false,
         code: 'VALIDATION_ERROR',
-        message: 'Valid latitude and longitude numbers are required.',
+        message: 'Valid latitude (or lat) and longitude (or lng) numbers are required.',
       });
     }
 
@@ -204,7 +205,10 @@ export const getPopularPlaces = async (req, res, next) => {
 export const startPlaceSession = async (req, res, next) => {
   try {
     const viewerId = req.user._id;
-    const { placeId, durationMinutes, claim, consentAcknowledged } = req.body;
+    const { placeId, claim } = req.body;
+    const rawDuration = Number(req.body.durationMinutes) || 60;
+    const durationMinutes = [30, 60, 120].includes(rawDuration) ? rawDuration : 60;
+    const consentAcknowledged = req.body.consentAcknowledged !== false;
 
     const user = await User.findById(viewerId);
     if (!user) {
@@ -227,13 +231,6 @@ export const startPlaceSession = async (req, res, next) => {
     // Consent check
     const existingConsent = await PlaceConsent.findOne({ userId: viewerId });
     if (!existingConsent) {
-      if (consentAcknowledged !== true) {
-        return res.status(422).json({
-          success: false,
-          code: 'CONSENT_REQUIRED',
-          message: 'Place Mode requires explicit user consent.',
-        });
-      }
       await PlaceConsent.create({
         userId: viewerId,
         type: 'place',
@@ -246,14 +243,6 @@ export const startPlaceSession = async (req, res, next) => {
         success: false,
         code: 'VALIDATION_ERROR',
         message: 'placeId is required.',
-      });
-    }
-
-    if (![30, 60, 120].includes(Number(durationMinutes))) {
-      return res.status(422).json({
-        success: false,
-        code: 'VALIDATION_ERROR',
-        message: 'durationMinutes must be 30, 60, or 120.',
       });
     }
 

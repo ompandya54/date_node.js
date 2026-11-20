@@ -15,10 +15,12 @@ router.use(protect);
 
 router.get('/', getCrossedPaths);
 router.delete('/', clearCrossedPaths);
+router.delete('/clear', clearCrossedPaths);
 router.post('/seen', markCrossedPathsSeen);
 router.get('/settings', getCrossedPathsSettings);
 router.put('/settings', updateCrossedPathsSettings);
 router.post('/:id/interest', expressCrossedPathInterest);
+router.post('/:id/interested', expressCrossedPathInterest);
 router.post('/:id/dismiss', dismissCrossedPath);
 
 export default router;

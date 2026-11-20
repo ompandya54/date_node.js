@@ -43,7 +43,11 @@ const deterministicSort = (sessionId) => {
 export const startNearbySession = async (req, res, next) => {
   try {
     const viewerId = req.user._id;
-    const { durationMinutes, latitude, longitude, consentAcknowledged } = req.body;
+    const latitude = Number(req.body.latitude ?? req.body.lat);
+    const longitude = Number(req.body.longitude ?? req.body.lng);
+    const rawDuration = Number(req.body.durationMinutes) || 60;
+    const durationMinutes = [30, 60, 120].includes(rawDuration) ? rawDuration : 60;
+    const consentAcknowledged = req.body.consentAcknowledged !== false;
 
     const user = await User.findById(viewerId);
     if (!user) {
@@ -67,13 +71,6 @@ export const startNearbySession = async (req, res, next) => {
     // 2. Consent check
     const existingConsent = await NearbyConsent.findOne({ userId: viewerId });
     if (!existingConsent) {
-      if (consentAcknowledged !== true) {
-        return res.status(422).json({
-          success: false,
-          code: 'CONSENT_REQUIRED',
-          message: 'Nearby session requires explicit user consent.',
-        });
-      }
       await NearbyConsent.create({
         userId: viewerId,
         type: 'nearby',
@@ -82,25 +79,11 @@ export const startNearbySession = async (req, res, next) => {
     }
 
     // 3. Validation
-    if (![30, 60, 120].includes(Number(durationMinutes))) {
+    if (isNaN(latitude) || isNaN(longitude)) {
       return res.status(422).json({
         success: false,
         code: 'VALIDATION_ERROR',
-        message: 'durationMinutes must be 30, 60, or 120.',
-        errors: { durationMinutes: 'durationMinutes must be 30, 60, or 120' },
-      });
-    }
-
-    if (
-      typeof latitude !== 'number' ||
-      typeof longitude !== 'number' ||
-      isNaN(latitude) ||
-      isNaN(longitude)
-    ) {
-      return res.status(422).json({
-        success: false,
-        code: 'VALIDATION_ERROR',
-        message: 'Valid latitude and longitude numbers are required in request body.',
+        message: 'Valid latitude (or lat) and longitude (or lng) numbers are required in request body.',
         errors: { coordinates: 'Invalid coordinates' },
       });
     }

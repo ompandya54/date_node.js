@@ -42,7 +42,7 @@ export const getDiscoverProfiles = async (req, res, next) => {
         if (!isNaN(decodedDate.getTime())) {
           query.createdAt = { $lt: decodedDate };
         }
-      } catch {}
+      } catch { }
     }
 
     // Keyset pagination ordered stably by createdAt desc
@@ -345,11 +345,13 @@ export const getLikesYou = async (req, res, next) => {
           : '';
 
         return {
+          id: user._id.toString(),
           profileId: user._id.toString(),
           name: user.name || '',
           age: user.age || 0,
           photoUrl,
-          likedAt: user.updatedAt,
+          avatarUrl: photoUrl,
+          likedAt: user.updatedAt ? user.updatedAt.toISOString() : new Date().toISOString(),
         };
       });
 

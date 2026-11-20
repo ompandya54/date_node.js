@@ -13,7 +13,7 @@ import { REPORT_REASON_ENUM } from '../utils/shared.utils.js';
  */
 export const blockProfile = async (req, res, next) => {
   try {
-    const { profileId } = req.body;
+    const profileId = req.params.id || req.params.profileId || req.body.profileId || req.body.targetUserId;
     const viewerId = req.user._id;
 
     if (!profileId) {
@@ -71,7 +71,7 @@ export const blockProfile = async (req, res, next) => {
  */
 export const unblockProfile = async (req, res, next) => {
   try {
-    const { profileId } = req.params;
+    const profileId = req.params.id || req.params.profileId || req.body.profileId || req.body.targetUserId;
     const viewerId = req.user._id;
 
     await User.findByIdAndUpdate(viewerId, {
@@ -89,12 +89,12 @@ export const unblockProfile = async (req, res, next) => {
 
 /**
  * @desc    Get blocked users list
- * @route   GET /api/safety/blocks
+ * @route   GET /api/safety/blocks or GET /api/users/blocked
  * @access  Private
  */
 export const getBlockedProfiles = async (req, res, next) => {
   try {
-    const viewer = await User.findById(req.user._id).populate('blockedUsers', 'name photos isActive');
+    const viewer = await User.findById(req.user._id).populate('blockedUsers', 'name photos isActive updatedAt createdAt');
 
     const items = (viewer.blockedUsers || [])
       .filter((u) => u && u.isActive)
@@ -104,9 +104,12 @@ export const getBlockedProfiles = async (req, res, next) => {
           : '';
 
         return {
+          id: user._id.toString(),
           profileId: user._id.toString(),
           name: user.name || '',
           photoUrl,
+          avatarUrl: photoUrl,
+          blockedAt: user.updatedAt ? user.updatedAt.toISOString() : (user.createdAt ? user.createdAt.toISOString() : new Date().toISOString()),
         };
       });
 
@@ -123,30 +126,25 @@ export const getBlockedProfiles = async (req, res, next) => {
 
 /**
  * @desc    Report a profile
- * @route   POST /api/safety/reports
+ * @route   POST /api/safety/reports or POST /api/users/:id/report
  * @access  Private
  */
 export const reportProfile = async (req, res, next) => {
   try {
-    const { profileId, reason, details } = req.body;
+    const profileId = req.params.id || req.params.profileId || req.body.profileId || req.body.targetUserId;
+    const reason = req.body.reason || 'harassment';
+    const details = req.body.details || '';
     const reporterId = req.user._id;
 
-    if (!profileId || !reason) {
+    if (!profileId) {
       return res.status(400).json({
         success: false,
         code: 'VALIDATION_ERROR',
-        message: 'profileId and reason are required.',
+        message: 'profileId is required.',
       });
     }
 
-    if (!REPORT_REASON_ENUM.includes(reason)) {
-      return res.status(422).json({
-        success: false,
-        code: 'VALIDATION_ERROR',
-        message: `reason must be one of: ${REPORT_REASON_ENUM.join(', ')}.`,
-        errors: { reason: 'Invalid report reason.' },
-      });
-    }
+    const validReason = REPORT_REASON_ENUM.includes(reason) ? reason : 'other';
 
     if (details !== undefined && details !== null && typeof details === 'string' && details.length > 500) {
       return res.status(422).json({
@@ -187,7 +185,7 @@ export const reportProfile = async (req, res, next) => {
     const report = await Report.create({
       reporterId,
       reportedId: profileId,
-      reason,
+      reason: validReason,
       details: details || '',
       evidenceSnapshot: {
         reportedProfile: reportedSnapshot,
@@ -196,7 +194,7 @@ export const reportProfile = async (req, res, next) => {
     });
 
     // If underage report: auto-hide reported profile pending review
-    if (reason === 'underage') {
+    if (validReason === 'underage') {
       reportedUser.hideProfile = true;
       await reportedUser.save();
     }

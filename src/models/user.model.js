@@ -111,6 +111,10 @@ const userSchema = new mongoose.Schema(
       enum: HABIT_ENUM,
       default: null,
     },
+    heightCm: {
+      type: Number,
+      default: null,
+    },
     // Privacy settings (B2)
     hideProfile: {
       type: Boolean,

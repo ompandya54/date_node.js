@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   getFeed,
+  getFeedProfileById,
   likeFeedProfile,
   passFeedProfile,
 } from '../controllers/feed.controller.js';
@@ -12,6 +13,7 @@ const router = express.Router();
 router.use(protect);
 
 router.get('/', getFeed);
+router.get('/:id', getFeedProfileById);
 
 // Support both /api/feed/:id/like and /api/feed/like (with body)
 router.post('/:id/like', swipeActionRateLimiter, likeFeedProfile);

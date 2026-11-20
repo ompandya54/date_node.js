@@ -37,6 +37,7 @@ export const formatMyProfile = (user) => {
     datingIntent: user.datingIntent || 'longTermRelationship',
     drinking: user.drinking || null,
     smoking: user.smoking || null,
+    heightCm: user.heightCm || null,
   };
 };
 
@@ -69,9 +70,11 @@ export const formatPublicProfile = (candidate, viewer = null) => {
     name: candidate.name || '',
     age: candidate.age || 0,
     photoUrls: photoUrls.slice(0, 6),
+    photos: photoUrls.slice(0, 6),
     bio: candidate.bio !== undefined ? candidate.bio : null,
     interests: mappedInterests,
     datingIntent: candidate.datingIntent || 'longTermRelationship',
+    heightCm: candidate.heightCm || null,
     commonInterestIds,
   };
 };
